@@ -1,5 +1,0 @@
----
-triple:          'arm64-apple-darwin'
-binary-path:     '/Users/binita/personal/projects/C-projects/hash-map-implementations/src/hashmap1'
-relocations:     []
-...
