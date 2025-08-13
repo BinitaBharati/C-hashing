@@ -10,6 +10,10 @@
 #define MAX_NAME 100
 #define TABLE_SIZE 100000000
 
+/**
+ * Hashmap implementation meant to be invoked only from C code.
+ */
+
 typedef struct map_entry {
     //key
     int key;
@@ -20,7 +24,7 @@ typedef struct map_entry {
     struct map_entry *next;
 } map_entry;
 
-map_entry *hash_table[TABLE_SIZE];
+static map_entry *hash_table[TABLE_SIZE];//without static also, this will work as this map is only used from C code.
 
 void init_hash_table(){
      for (int i = 0 ; i < TABLE_SIZE; i++){
@@ -64,6 +68,7 @@ void insert_to_hash_table(map_entry *mapEntry) {
             //replace the current node with input node.
             mapEntry->next = headPtr->next;
             hash_table[index] = mapEntry;
+            //printf("free ptr %p for key = %d\n",headPtr,mapEntry->key);
             free(headPtr);
             return;
         }
@@ -74,7 +79,8 @@ void insert_to_hash_table(map_entry *mapEntry) {
                 if (nextPtr->key == mapEntry->key) {
                     //replace the current node with input node.
                     mapEntry->next = nextPtr->next;
-                    prevPtr->next = mapEntry;              
+                    prevPtr->next = mapEntry;  
+                    //printf("free ptr %p for key = %d\n",nextPtr,mapEntry->key);      
                     free(nextPtr);
                     return;
             }
@@ -83,6 +89,8 @@ void insert_to_hash_table(map_entry *mapEntry) {
         }
         //if control is here that means, we need to add a brand new node at the end of the linked list
         mapEntry->next = NULL;
+        //printf("free ptr %p for key = %d\n",prevPtr->next,mapEntry->key);      
+        //free(prevPtr->next);
         prevPtr->next = mapEntry;
         return;
         }
@@ -105,6 +113,7 @@ map_entry *hash_table_look_up(unsigned int key) {
             if (nextPtr->key == key) {
                 return nextPtr;
             }
+            nextPtr = nextPtr->next;
         }
        }
     }   
@@ -166,8 +175,6 @@ void lookup_random_keys(){
     }
 }
 
-
-
 int main(int argc, char *argv[]) {
     //printf("Argument count: %d\n", argc);
     if (argc < 2) {
@@ -179,34 +186,32 @@ int main(int argc, char *argv[]) {
     init_hash_table();
     int TOTAL_ENTRIES = atoi(argv[1]);
     while (true) {
-        int key = 2;
         long long start_millis = current_time_millis();
-        for (int i = 0 ; i < TOTAL_ENTRIES; i++) {
+        for (int key = 1 ; key <= TOTAL_ENTRIES; key++) {
             map_entry *mapEntry = malloc(sizeof(map_entry));
-        
+            //printf("malloc assigned %p for key = %d\n",mapEntry,key);
+     
             mapEntry->key = key;
 
             char name[50];
             generate_random_string(name,50);
-            strncpy(mapEntry->name, name, MAX_NAME);
+            strncpy(mapEntry->name, name, MAX_NAME-1);
+            mapEntry->name[MAX_NAME - 1] = '\0';
             
             int num = (rand() % 100) + 1;
             mapEntry->value1 = key + num;
 
             mapEntry->next = NULL;
             insert_to_hash_table(mapEntry);
-            key = key + 2;
         }
         long long end_millis = current_time_millis();
          //try looking up some entries
-        lookup_random_keys();
+        //lookup_random_keys();
 
         printf("Done with adding all entries in map. Time taken in ms = %lld\n",(end_millis-start_millis)); 
         printf("Going to sleep\n");
         sleep(1*60);
-        printf("Woke up from sleep.\n"); 
-
-       
+        printf("Woke up from sleep.\n");   
     }
     return 0;
 }
