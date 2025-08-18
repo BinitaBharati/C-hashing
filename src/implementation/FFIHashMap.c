@@ -65,43 +65,45 @@ void insert_to_hash_table(int key, char *name) {
     }
 
     map_entry* mapEntry = transform(key, name);
+    printf("got new malloc pointer ptr %p for key = %d\n",mapEntry,mapEntry->key);
 
     int index = hash(key); 
     if (hash_table[index] == NULL) {
          hash_table[index] = mapEntry;   
          return;
     }
-        map_entry *headPtr = hash_table[index];
-        if (headPtr->key  == mapEntry->key) {
-            //replace the current node with input node.
-            mapEntry->next = headPtr->next;
-            hash_table[index] = mapEntry;
-            //printf("free ptr %p for key = %d\n",headPtr,mapEntry->key);
-            free(headPtr);
-            return;
-        }
-        else {
-            map_entry *prevPtr = headPtr;
-            map_entry *nextPtr = hash_table[index]->next;
-            while (nextPtr != NULL) {
-                if (nextPtr->key == mapEntry->key) {
-                    //replace the current node with input node.
-                    mapEntry->next = nextPtr->next;
-                    prevPtr->next = mapEntry;  
-                    //printf("free ptr %p for key = %d\n",nextPtr,mapEntry->key);      
-                    free(nextPtr);
-                    return;
-            }
-            prevPtr = nextPtr;
-            nextPtr = nextPtr->next;
-        }
-        //if control is here that means, we need to add a brand new node at the end of the linked list
-        mapEntry->next = NULL;
-        //printf("free ptr %p for key = %d\n",prevPtr->next,mapEntry->key);      
-        //free(prevPtr->next);
-        prevPtr->next = mapEntry;
+
+    map_entry *headPtr = hash_table[index];
+    if (headPtr->key  == mapEntry->key) {
+        //replace the current node with input node.
+        mapEntry->next = headPtr->next;
+        hash_table[index] = mapEntry;
+        printf("free ptr %p for key = %d\n",headPtr,mapEntry->key);
+        free(headPtr);
         return;
+    }
+    else {
+        map_entry *prevPtr = headPtr;
+        map_entry *nextPtr = headPtr->next;
+        while (nextPtr != NULL) {
+            if (nextPtr->key == mapEntry->key) {
+                //replace the current node with input node.
+                mapEntry->next = nextPtr->next;
+                prevPtr->next = mapEntry;  
+                printf("free ptr %p for key = %d\n",nextPtr,mapEntry->key);      
+                free(nextPtr);
+                return;
         }
+        prevPtr = nextPtr;
+        nextPtr = nextPtr->next;
+    }
+    //if control is here that means, we need to add a brand new node at the end of the linked list
+    mapEntry->next = NULL;
+    //printf("free ptr %p for key = %d\n",prevPtr->next,mapEntry->key);      
+    //free(prevPtr->next);
+    prevPtr->next = mapEntry;
+    return;
+    }
     
 }
 

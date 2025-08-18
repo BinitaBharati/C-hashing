@@ -1,5 +1,5 @@
 #include <jni.h> /** This is part of JDK installation */
-#include <bharati_binita_jvm_mem_mgmnt_NativeHashMap.h>
+#include <bharati_binita_bridge_javaToC_jni_NativeHashMap.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,7 +14,7 @@
 #define TABLE_SIZE 100000000
 #define MAX_NAME 100
 
-static map_entry_non_native *hash_table[TABLE_SIZE];
+map_entry_non_native *hash_table[TABLE_SIZE];
 
 void init_hash_table(){
      for (int i = 0 ; i < TABLE_SIZE; i++){
@@ -199,12 +199,12 @@ bool delete_key_fromhashtable(unsigned int key) {
     return false;
 }
 
-JNIEXPORT void JNICALL Java_bharati_binita_jvm_mem_mgmnt_NativeHashMap_init_1hash_1table(JNIEnv *env, jobject obj) {
+JNIEXPORT void JNICALL Java_bharati_binita_bridge_javaToC_jni_NativeHashMap_init_1hash_1table(JNIEnv *env, jobject obj) {
    init_hash_table();
 }
 
 
-JNIEXPORT void JNICALL Java_bharati_binita_jvm_mem_mgmnt_NativeHashMap_insert_1to_1hash_1table
+JNIEXPORT void JNICALL Java_bharati_binita_bridge_javaToC_jni_NativeHashMap_insert_1to_1hash_1table
   (JNIEnv *env, jobject obj, jint key, jstring name) {
 
     if (name == NULL) {
@@ -227,14 +227,14 @@ JNIEXPORT void JNICALL Java_bharati_binita_jvm_mem_mgmnt_NativeHashMap_insert_1t
     (*env)->ReleaseStringUTFChars(env, name, name_cstr);
 }
 
-JNIEXPORT jstring JNICALL Java_bharati_binita_jvm_mem_mgmnt_NativeHashMap_hash_1table_1look_1up
+JNIEXPORT jstring JNICALL Java_bharati_binita_bridge_javaToC_jni_NativeHashMap_hash_1table_1look_1up
   (JNIEnv *env, jobject obj, jint key) {
     map_entry_non_native *entry = hash_table_look_up((int)key);
     if (entry == NULL) return NULL;
     return (*env)->NewStringUTF(env, entry->name);
 }
 
-JNIEXPORT jboolean JNICALL Java_bharati_binita_jvm_mem_mgmnt_NativeHashMap_delete_1key_1fromhashtable
+JNIEXPORT jboolean JNICALL Java_bharati_binita_bridge_javaToC_jni_NativeHashMap_delete_1key_1fromhashtable
   (JNIEnv *env, jobject obj, jint key){
     return delete_key_fromhashtable((int)key) ? JNI_TRUE : JNI_FALSE;
 }
