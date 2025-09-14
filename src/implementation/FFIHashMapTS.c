@@ -6,6 +6,7 @@
 #include <unistd.h> 
 #include <time.h>
 #include "../headers/common_headers.h"
+#include <pthread.h>
 
 #define MAX_NAME 50
 #define TABLE_SIZE 100000000
@@ -13,7 +14,7 @@
 /**
  * Hashmap implementation meant to be invoked from Java FFI. However, FFI library
  * is so generic that this file can be used normally within C code (how you would
- * do without FFI involved). This implementation is not thread safe!!
+ * do without FFI involved). This implementation is THREAD SAFE!!
  */
 
 typedef struct map_entry {
@@ -22,26 +23,35 @@ typedef struct map_entry {
 
     char name[MAX_NAME];
     struct map_entry *next;
-} map_entry;//at this point no memory is allocated, as it is just the struct declaration
+} map_entry;
 
-static map_entry *hash_table[TABLE_SIZE];
+map_entry *hash_table[TABLE_SIZE];
+//bucket level locks, same as Java's ConcurrentHashMap
+pthread_mutex_t bucket_locks[TABLE_SIZE];
+
+void init_locks() {
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        pthread_mutex_init(&bucket_locks[i], NULL);
+    }
+}
 
 void init_hash_table(){
      for (int i = 0 ; i < TABLE_SIZE; i++){
         hash_table[i] = NULL;//if you dont set it, it will be set to garbage values. And you wont really know if its a valkey pointer or not. 
     }
+    init_locks();
 }
 
 void print_hash_table(){
     for (int i = 0 ; i < TABLE_SIZE; i++){
-        //printf("--------\n");
-        //printf("Printing bucket number = %u\n",i);
+        printf("--------\n");
+        printf("Printing bucket number = %u\n",i);
 
         if (hash_table[i] != NULL) {
-            //printf("\t\t\t%d %s\n", hash_table[i]->key, hash_table[i]->name);
+            printf("\t\t\t%d %s\n", hash_table[i]->key, hash_table[i]->name);
             map_entry *nextPtr = hash_table[i]->next;
             while (nextPtr != NULL) {
-                //printf("\t\t\t%d %s\n", nextPtr->key, nextPtr->name);
+                printf("\t\t\t%d %s\n", nextPtr->key, nextPtr->name);
                 nextPtr = nextPtr->next;
             }
         }
@@ -70,8 +80,10 @@ void insert_to_hash_table(int key, char *name) {
     //printf("got new malloc pointer ptr %p for key = %d\n",mapEntry,mapEntry->key);
 
     int index = hash(key); 
+    pthread_mutex_lock(&bucket_locks[index]);
     if (hash_table[index] == NULL) {
          hash_table[index] = mapEntry;   
+         pthread_mutex_unlock(&bucket_locks[index]);
          return;
     }
 
@@ -80,8 +92,9 @@ void insert_to_hash_table(int key, char *name) {
         //replace the current node with input node.
         mapEntry->next = headPtr->next;
         hash_table[index] = mapEntry;
-        //printf("free ptr %p for key = %d\n",headPtr,mapEntry->key);
+        printf("free ptr %p for key = %d\n",headPtr,mapEntry->key);
         free(headPtr);
+        pthread_mutex_unlock(&bucket_locks[index]);
         return;
     }
     else {
@@ -92,8 +105,9 @@ void insert_to_hash_table(int key, char *name) {
                 //replace the current node with input node.
                 mapEntry->next = nextPtr->next;
                 prevPtr->next = mapEntry;  
-                //printf("free ptr %p for key = %d\n",nextPtr,mapEntry->key);      
+                printf("free ptr %p for key = %d\n",nextPtr,mapEntry->key);      
                 free(nextPtr);
+                pthread_mutex_unlock(&bucket_locks[index]);
                 return;
         }
         prevPtr = nextPtr;
@@ -104,6 +118,7 @@ void insert_to_hash_table(int key, char *name) {
     //printf("free ptr %p for key = %d\n",prevPtr->next,mapEntry->key);      
     //free(prevPtr->next);
     prevPtr->next = mapEntry;
+    pthread_mutex_unlock(&bucket_locks[index]);
     return;
     }
     
@@ -112,10 +127,12 @@ void insert_to_hash_table(int key, char *name) {
 map_entry *hash_table_look_up(unsigned int key) {
     map_entry *hashmap_value;
     unsigned int index = hash(key);
+    pthread_mutex_lock(&bucket_locks[index]);
     
     hashmap_value = hash_table[index];
     if (hashmap_value != NULL) {
        if (hashmap_value->key == key) {
+        pthread_mutex_unlock(&bucket_locks[index]);
         return hashmap_value;
        }
        else {
@@ -123,12 +140,14 @@ map_entry *hash_table_look_up(unsigned int key) {
         map_entry *nextPtr = hashmap_value->next;
         while (nextPtr != NULL) {
             if (nextPtr->key == key) {
+                pthread_mutex_unlock(&bucket_locks[index]);
                 return nextPtr;
             }
             nextPtr = nextPtr->next;
         }
        }
     }   
+    pthread_mutex_unlock(&bucket_locks[index]);
     return NULL;
 }
 
@@ -169,30 +188,21 @@ void generate_random_string(char *str, unsigned int length) {
     str[length-1] = '\0';  // null-terminate the string
 }
 
-/**
- * Generate random even number between 2 to 200 million.
- */
-int get_random_even() {
-    // number of even values in [2, 200000000] is 100000000
-    int max_even_count = 100000000;
-    int r = rand() % max_even_count;  // random between 0 and 99,999,999
-    return (r * 2) + 2;               // scale to even range
-}
-
 void lookup_random_keys(){
-    int totalLookedUpKeys = 0;
-    while (totalLookedUpKeys < 10){
-        int lookUpKey = get_random_even();
-        printf("Looking up key = %d\n",lookUpKey);
-        map_entry *mapEntry = hash_table_look_up(lookUpKey);
+    int startKey = 2;
+    for (int i = 0 ; i < 10 ; i++){
+        printf("Looking up key = %d\n",startKey);
+        map_entry *mapEntry = hash_table_look_up(startKey);
         if (mapEntry != NULL) {
-            printf("look up key = %d, value = \n",lookUpKey);
+            printf("look up key = %d, value = \n",startKey);
             printf("\t\t\t%s\n",mapEntry->name);
         }
         else {
             printf("\t\t\tNULL\n");
-        } 
-        totalLookedUpKeys++;
+        }
+       
+        startKey = startKey + 2;
+
     }
 }
 
@@ -208,21 +218,18 @@ int main(int argc, char *argv[]) {
     int TOTAL_ENTRIES = atoi(argv[1]);
     while (true) {
         long long start_millis = current_time_millis();
-        int mapKey = 2;
-        int total_generated_entries = 0;
-        while (total_generated_entries < TOTAL_ENTRIES) {
+        for (int key = 1 ; key <= TOTAL_ENTRIES; key++) {
             char name[MAX_NAME];
-            snprintf(name, MAX_NAME, "%d", mapKey);
-            //generate_random_string(name,MAX_NAME);
-            insert_to_hash_table(mapKey, name);
-            mapKey = mapKey + 2;
-            total_generated_entries++;
+            generate_random_string(name,MAX_NAME);
+
+            insert_to_hash_table(key, name);
         }
 
         long long end_millis = current_time_millis();
-        printf("Done with adding all entries in map. Time taken in ms = %lld\n",(end_millis-start_millis)); 
          //try looking up some entries
-        lookup_random_keys();
+        //lookup_random_keys();
+
+        printf("Done with adding all entries in map. Time taken in ms = %lld\n",(end_millis-start_millis)); 
         printf("Going to sleep\n");
         sleep(1*60);
         printf("Woke up from sleep.\n");   
