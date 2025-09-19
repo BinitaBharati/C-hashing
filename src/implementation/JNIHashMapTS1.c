@@ -132,25 +132,28 @@ void print_hash_table(){
 }
 
 
-map_entry_non_native *hash_table_look_up(unsigned int key) {
-    map_entry_non_native *hashmap_value;
+char *hash_table_look_up(unsigned int key) {
     unsigned int index = hash(key);
     int lock_index = get_lock_index(index);
     pthread_mutex_lock(&bucket_locks[lock_index]);
    
-    hashmap_value = hash_table[index];
+    map_entry_non_native* hashmap_value = hash_table[index];
     if (hashmap_value != NULL) {
        if (hashmap_value->key == key) {
+        char* orig_name = hashmap_value->name;
+        char *copy = strdup(orig_name);
         pthread_mutex_unlock(&bucket_locks[lock_index]);
-        return hashmap_value;
+        return copy;
        }
        else {
         map_entry_non_native *headPtr = hashmap_value;
         map_entry_non_native *nextPtr = hashmap_value->next;
         while (nextPtr != NULL) {
             if (nextPtr->key == key) {
+                char* orig_name = nextPtr->name;
+                char *copy = strdup(orig_name);
                 pthread_mutex_unlock(&bucket_locks[lock_index]);
-                return nextPtr;
+                return copy;
             }
             nextPtr = nextPtr->next;
         }
@@ -218,9 +221,11 @@ JNIEXPORT void JNICALL Java_bharati_binita_bridge_javaToC_jni_NativeHashMap_inse
 
 JNIEXPORT jstring JNICALL Java_bharati_binita_bridge_javaToC_jni_NativeHashMap_hash_1table_1look_1up
   (JNIEnv *env, jobject obj, jint key) {
-    map_entry_non_native *entry = hash_table_look_up((int)key);
-    if (entry == NULL) return NULL;
-    return (*env)->NewStringUTF(env, entry->name);
+    char *name = hash_table_look_up((int)key);
+    if (name == NULL) return NULL;
+    jstring returnedName = (*env)->NewStringUTF(env, name);
+    free(name);
+    return returnedName;
 }
 
 JNIEXPORT jboolean JNICALL Java_bharati_binita_bridge_javaToC_jni_NativeHashMap_delete_1key_1fromhashtable

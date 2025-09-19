@@ -69,10 +69,21 @@ unsigned int hash(unsigned int key){
 
 map_entry* transform(int key, char* name){
     map_entry *mapEntry = malloc(sizeof(map_entry));
-    //printf("malloc assigned %p for key = %d\n",mapEntry,key);
 
     mapEntry->key = key;
-    mapEntry->next = NULL;//if not initialized, next can point to garbage pointer value.
+
+    /*If not initialized, next can point to garbage pointer value.
+    And, you will get C side errors while accesing next, like the code below from lookup method:
+
+     map_entry *headPtr = hashmap_value;
+        map_entry *nextPtr = hashmap_value->next;
+        while (nextPtr != NULL) {
+            if (nextPtr->key == key) {
+            }
+        }  
+    */
+    mapEntry->next = NULL;
+
     strncpy(mapEntry->name, name, MAX_NAME);
     return mapEntry;
 }
@@ -110,7 +121,6 @@ void insert_to_hash_table(int key, char *name) {
                 //replace the current node with input node.
                 mapEntry->next = nextPtr->next;
                 prevPtr->next = mapEntry;  
-                //printf("free ptr %p for key = %d\n",nextPtr,mapEntry->key);      
                 free(nextPtr);
                 pthread_mutex_unlock(&bucket_locks[lock_index]);
                 return;
@@ -120,8 +130,6 @@ void insert_to_hash_table(int key, char *name) {
     }
     //if control is here that means, we need to add a brand new node at the end of the linked list
     mapEntry->next = NULL;
-    //printf("free ptr %p for key = %d\n",prevPtr->next,mapEntry->key);      
-    //free(prevPtr->next);
     prevPtr->next = mapEntry;
     pthread_mutex_unlock(&bucket_locks[lock_index]);
     return;
@@ -137,12 +145,18 @@ char *hash_table_look_up(unsigned int key) {
     hashmap_value = hash_table[index];
     if (hashmap_value != NULL) {
        if (hashmap_value->key == key) {
-        /**
-         * Dangerous, as you have unlocked, and now a write may free the memory that is holding this structure. 
-         * On Java end, as you try to get the value of the returned char pointer, it may get garbage, as the holder 
-         * parent structure itself got collected (free'ed)
-         */
+      
         char* orig_name = hashmap_value->name;
+          /**
+         * It is dangerous to return the orig_name as it is to Java, as you need to unlock before returning.
+         * Once unlocked, a write(insert_to_hash_table) may free the memory that is holding this structure. 
+         * On Java end, as you try to get the value of the returned char pointer, it may get garbage, as the holder 
+         * parent structure itself got collected (free'ed). 
+         * 
+         * So, you need to return a copy of the orig_name to Java, and also inform Java guys to call the
+         * corresponding free_string FFI method to free the memory used by this copied string. This is to be done once 
+         * Java is done with reading the output from this method.
+         */
         printf("Got orig_name = %s\n",orig_name);
 
         char *copy = strdup(orig_name);
