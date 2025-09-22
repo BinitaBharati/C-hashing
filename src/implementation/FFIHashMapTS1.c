@@ -157,11 +157,9 @@ char *hash_table_look_up(unsigned int key) {
          * corresponding free_string FFI method to free the memory used by this copied string. This is to be done once 
          * Java is done with reading the output from this method.
          */
-        printf("Got orig_name = %s\n",orig_name);
 
         char *copy = strdup(orig_name);
         pthread_mutex_unlock(&bucket_locks[lock_index]);
-        printf("Got copy = %s\n",copy);
         return copy;
        }
        else {
@@ -170,10 +168,8 @@ char *hash_table_look_up(unsigned int key) {
         while (nextPtr != NULL) {
             if (nextPtr->key == key) {
                 char* orig_name = nextPtr->name;
-                printf("Got orig_name = %s\n",orig_name);
                 char *copy = strdup(orig_name);
                 pthread_mutex_unlock(&bucket_locks[lock_index]);
-                printf("Got copy1 = %s\n",copy);
                 return copy;
             }
             nextPtr = nextPtr->next;
@@ -193,9 +189,7 @@ void free_string(char* p) {
     if (p == NULL) {
         return;
     }
-    printf("free_string entered for %s\n",p);
     free(p);
-    printf("free_string exited\n");
 }
 
 bool delete_key_from_hashtable(unsigned int key) {
@@ -238,14 +232,14 @@ void generate_random_string(char *str, unsigned int length) {
 void lookup_random_keys(){
     int startKey = 2;
     for (int i = 0 ; i < 10 ; i++){
-        printf("Looking up key = %d\n",startKey);
+        //printf("Looking up key = %d\n",startKey);
         char *name = hash_table_look_up(startKey);
         if (name != NULL) {
-            printf("look up key = %d, value = \n",startKey);
-            printf("\t\t\t%s\n",name);
+            //printf("look up key = %d, value = \n",startKey);
+            //printf("\t\t\t%s\n",name);
         }
         else {
-            printf("\t\t\tNULL\n");
+            //printf("\t\t\tNULL\n");
         }
        
         startKey = startKey + 2;

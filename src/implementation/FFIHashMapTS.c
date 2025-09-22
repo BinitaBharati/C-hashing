@@ -12,6 +12,7 @@
 #define TABLE_SIZE 100000000
 
 /**
+ * Warning: Untested code!!
  * Hashmap implementation meant to be invoked from Java FFI. However, FFI library
  * is so generic that this file can be used normally within C code (how you would
  * do without FFI involved). This implementation is THREAD SAFE!!

@@ -12,6 +12,7 @@
 #include <pthread.h>
 
 /**
+ * Warning: Untested code!!
  * Thread safe version of JNIHashMap.
  */
 
